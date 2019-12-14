@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+      http://www.springframework.org/schema/beans/spring-beans.xsd
+      http://www.springframework.org/schema/context
+      http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+    <!--扫描注解-->
+    <context:component-scan base-package="service.*,mapper.*"></context:component-scan>
+    <!--读取数据库配置文件-->
+    <context:property-placeholder location="classpath:database.properties"/>
+    <!--创建dbcp的数据源，配置数据源-->
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+        <property name="driverClassName" value="${jdbc.driver}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <!--连接池在第一次初始化时需要创建的个数,默认值为0-->
+        <property name="initialSize" value="${initialSize}"/>
+        <!--连接池中最大连接数,默认为8-->
+        <property name="maxActive" value="${maxActive}"/>
+        <!--连接池中最大空闲的连接数，默认为8,这个值不能设置的太小，
+            在高负载的情况下，连接的打开时间要比关闭的时间快，这样
+            就会造成连接池中空闲的个数上升，并且还会超过最大的空闲
+            数，从而造成连接的频繁创建和销毁，会影响性能 -->
+        <property name="maxIdle" value="${maxIdle}"/>
+        <!--同理，这个值不能设置的太大-->
+        <property name="minIdle" value="${minIdle}"/>
+        <!--定义最大的等待连接时间,单位毫秒，默认-1，修改后可
+            以避免线程持重一直等待造成资源的消耗-->
+        <property name="maxWait" value="${maxWait}"/>
+        <!--告诉连接池是否开启不用的连接的回收机制,默认false-->
+        <property name="removeAbandoned" value="${removeAbandoned}"/>
+        <!--在超出时间后回收不用的连接-->
+        <property name="removeAbandonedTimeout" value="${removeAbandonedTimeout}"/>
+        <!-- sql 心跳 ，当你项目由于某种原因数据库停掉了，所有
+            连接池中的连接都变的无效，整个系统功能都变得不可用，
+            我们需要的数据库服务器和应用服务器进行一个重启操作，
+            才能正常的访问应用系统，使用业务功能，当我们配置
+            sql心跳包后，我们的系统就不用去手动重启了，还有一个
+            原因是mysql数据库，他默认的8个小时内没有连接动态，
+            也就是说没有请求数据的情况下mysql会主动断掉所有的连
+            接，如果你想要恢复，那么必须需要重启应用系统，重新建
+            立连接，重新连接mysql-->
+        <!--定义开启EVICT的定时校验，这个校验是循环校验-->
+        <property name="testWhileIdle" value="true"/>
+        <!--定义Evict的时间间隔，单位毫秒-->
+        <property name="timeBetweenEvictionRunsMillis" value="60000"/>
+        <!--定义在进行BorrowObject处理的时候，对拿到的连接是否要
+            进行校验，默认false-->
+        <property name="testOnBorrow" value="false"/>
+        <!--定义在ReturnObject的时候对于返回的连接是否进行校验，默认false-->
+        <property name="testOnReturn" value="false"/>
+        <!--定义校验所使用的sql语句,为了跟mysql进行一个简单的通
+            信，所以sql语句不能太过于复杂，会影响其性能-->
+        <property name="validationQuery" value="select 1"/>
+        <!--定义每次校验的连接数，一般情况下会和maxActive的值保持
+            一致，每次校验可以校验全部连接-->
+        <property name="numTestsPerEvictionRun" value="${maxActive}"/>
+    </bean>
+
+    <!--配置事务管理器-->
+    <bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+    <!--声明自动为spring容器中那些配置@aspectJ切面的bean创建代理，织入切面-->
+    <aop:aspectj-autoproxy/>
+    <!--为true则是基于类的代理将起作用（需要cglib库），为false或者
+        省略这个属性，则标准的JDK 基于接口的代理将起作用-->
+    <aop:config proxy-target-class="true">
+        <aop:pointcut id="transService" expression="execution(* service..*(..))"/>
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="transService"/>
+    </aop:config>
+    <tx:advice id="txAdvice" transaction-manager="txManager">
+        <tx:attributes>
+            <!--为所有update开头的方法添加事务，只要抛出异常则回滚事务-->
+            <tx:method name="update*" propagation="REQUIRED" rollback-for="Exception"/>
+        </tx:attributes>
+    </tx:advice>
+
+    <!--配置sqlSessionFactoryBean-->
+    <bean id="sqlSessionFactory"
+          class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--引用数据源-->
+        <property name="dataSource" ref="dataSource"/>
+        <!--指定mybatis的配置文件-->
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+        <!--指定mapper.xml文件-->
+        <property name="mapperLocations">
+            <list>
+                <value>classpath:mapper/xml/*.xml</value>
+            </list>
+        </property>
+    </bean>
+    <!--扫描mapper文件，并自动创建bean-->
+    <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+        <!--SqlSessionTemplate的构造方法，所以以下是构造器注入-->
+        <constructor-arg index="0" ref="sqlSessionFactory"/>
+    </bean>
+
+</beans>

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserMapper">
+    <!--登录-->
+    <select id="login" resultType="user">
+        select * from smbms_user
+          <trim prefix="where" prefixOverrides="and">
+              <if test="userCode != null">
+                  and userCode=#{userCode}
+              </if>
+              <if test="password != null">
+                  and userPassword=#{password}
+              </if>
+          </trim>
+    </select>
+    <!--查询总记录数-->
+    <select id="getUserCount" resultType="int">
+        select count(1) from smbms_user
+    </select>
+    <!--用户管理查询-->
+    <select id="getUserList" resultType="user">
+        select u.*,r.roleName userRoleName from smbms_user u,smbms_role r
+          where u.userRole=r.id
+          <if test="userName!=null and userName!=''">
+              and u.userName like concat('%',#{userName},'%')
+          </if>
+          <if test="userRole!=null and userRole!=0">
+              and u.userRole=#{userRole}
+          </if>
+          <if test="userCode!=null and userCode!=''">
+              and u.userCode=#{userCode}
+          </if>
+          <if test="uid!=null and uid!=0">
+              and u.id=#{uid}
+          </if>
+          <if test="pageIndex!=null">
+              order by u.id limit #{pageIndex},5
+          </if>
+
+    </select>
+
+    <!--用户添加-->
+    <insert id="addUser" parameterType="User">
+        INSERT INTO smbms_user
+        <trim prefix="(" suffixOverrides="," suffix=")">
+            <if test="userCode != null">userCode,</if>
+            <if test="userName != null">userName,</if>
+            <if test="userPassword != null">userPassword,</if>
+            <if test="gender != null">gender,</if>
+            <if test="birthday != null">birthday,</if>
+            <if test="phone != null">phone,</if>
+            <if test="address != null">address,</if>
+            <if test="createdBy != 0">createdBy,</if>
+            <if test="creationDate != null">creationDate,</if>
+            <if test="userRole != null">userRole,</if>
+        </trim>
+        values
+        <trim prefix="(" suffixOverrides="," suffix=")">
+            <if test="userCode != null">#{userCode},</if>
+            <if test="userName != null">#{userName},</if>
+            <if test="userPassword != null">#{userPassword},</if>
+            <if test="gender != null">#{gender},</if>
+            <if test="birthday != null">#{birthday},</if>
+            <if test="phone != null">#{phone},</if>
+            <if test="address != null">#{address},</if>
+            <if test="createdBy != 0">#{createdBy},</if>
+            <if test="creationDate != null">#{creationDate},</if>
+            <if test="userRole != null">#{userRole},</if>
+        </trim>
+    </insert>
+
+    <!--用户删除-->
+    <delete id="delUser" >
+        delete  from smbms_user where id=#{uid}
+    </delete>
+
+    <!--用户修改-->
+    <update id="updateUser" parameterType="User">
+        UPDATE smbms_user
+        <set>
+            <if test="userCode!=null">`userCode`=#{userCode},</if>
+            <if test="userName!=null">`userName`=#{userName},</if>
+            <if test="gender!=null">`gender`=#{gender},</if>
+            <if test="userPassword!=null">`userPassword`=#{userPassword},</if>
+            <if test="birthday!=null">`birthday`=#{birthday},</if>
+            <if test="phone!=null">`phone`=#{phone},</if>
+            <if test="address!=null">`address`=#{address},</if>
+            <if test="userRole!=null">`userRole`=#{userRole},</if>
+            <if test="modifyBy!=null">`modifyBy`=#{modifyBy},</if>
+            <if test="modifyDate!=null">`modifyDate`=#{modifyDate},</if>
+        </set>
+        <where>
+            <if test="id!=null">id=#{id}</if>
+        </where>
+    </update>
+</mapper>
